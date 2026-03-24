@@ -1,10 +1,27 @@
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
+use error_macro::graph_error;
 
-#[derive(Debug, Clone)]
-enum GraphError {
-    NodeOutOfStore,
+#[graph_error]
+#[derive(Debug, Clone, Copy)]
+pub struct GraphError {
+    code: u32,
+    name: &'static str,
+    message: &'static str,
 }
+
+impl GraphError {
+    pub const fn new(code: u32, name: &'static str, message: &'static str) -> Self {
+        Self { code, name, message }
+    }
+}
+
+pub static OUT_OF_NODE_STORE: GraphError = GraphError::new(
+    401, 
+    "Out Of Node Store Error", 
+    "Node was not found in node_store. Ensure that nodes exist before adding edges."
+);
+
 
 // playing around with counters to wrap int type for better api semantics
 macro_rules! id_type {
@@ -78,7 +95,7 @@ struct Graph {
 impl Graph {
     fn add_edge(&mut self, u_id: NodeID, v_id: NodeID, edge_type: EdgeType) -> Result<EdgeID, GraphError> {
         if !self.node_store.contains_key(&u_id) || !self.node_store.contains_key(&v_id) {
-            return Err(GraphError::NodeOutOfStore);
+            return Err(OUT_OF_NODE_STORE);
         }
 
         let id = self.edge_counter.next();
