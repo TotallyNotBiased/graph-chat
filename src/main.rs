@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::fmt;
 
@@ -50,7 +50,8 @@ enum EdgeType {
 }
 
 struct Edge {
-    to_node_idx: NodeID,
+    source_node: NodeID,
+    dest_node: NodeID,
     edge_type: EdgeType,
     edge_id: EdgeID,
     timestamp: u64,
@@ -70,10 +71,11 @@ impl Edge {
 
 // default adjacency list structure to think about, borrow checker won't like this
 // struct Graph<Node> (Vec<Vec<(Node, Edge)>>);
-// so we need to backtrace from a given node. that means our data structure should prioritize
-// O(1) lookup of all edges from a given node's id. maybe we can also get O(1) lookup of nodes from there
-// as well.
+// so we need to backtrace from a given node. that means our data structure should 
+// prioritize O(1) lookup of all edges from a given node's id. maybe we can also 
+// get O(1) lookup of nodes from there as well.
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum Direction {
     In,
     Out,
@@ -88,7 +90,13 @@ struct Graph {
 }
 
 impl Graph {
-    fn add_edge(&mut self, u_id: NodeID, v_id: NodeID, edge_type: EdgeType) -> Result<EdgeID, GraphError> {
+    fn add_edge(
+        &mut self, 
+        u_id: NodeID, 
+        v_id: NodeID, 
+        edge_type: EdgeType
+    ) -> Result<EdgeID, GraphError> {
+
         if !self.node_store.contains_key(&u_id) || !self.node_store.contains_key(&v_id) {
             return Err(GraphError::OutOfNodeStore);
         }
@@ -97,7 +105,8 @@ impl Graph {
         self.edge_store.insert(
             id,
             Edge { 
-                to_node_idx: v_id,
+                source_node: u_id,
+                dest_node: v_id,
                 edge_type,
                 edge_id: id,
                 timestamp: SystemTime::now()
@@ -132,6 +141,67 @@ impl Graph {
 
         Ok(id)
     }
+
+    fn find_neighbours(
+        &self, 
+        node: NodeID, 
+        direction: Direction
+    ) -> Result<impl Iterator<Item = NodeID>, GraphError> {
+
+        if !self.node_store.contains_key(&node) {
+            return Err(GraphError::OutOfNodeStore);
+        }
+
+        let nodes = self.adjacency[&node].iter()
+            .filter(move |&edge| edge.1 == direction)
+            .map(move |(edge, _)|{
+                debug_assert!(self.edge_store.contains_key(edge));
+                let Edge{ source_node, dest_node, .. } = self.edge_store[edge];
+                match direction {
+                    Direction::In => source_node,
+                    Direction::Out => dest_node
+                }});
+
+        Ok(nodes)
+    }
+
+    fn pathed_bfs(
+        &self, 
+        source: NodeID, 
+        target: NodeID, 
+        direction: Direction
+    ) -> Result<Option<Vec<NodeID>>, GraphError> {
+        let mut q = VecDeque::<NodeID>::new();
+        q.push_back(source);
+        let mut visited_parents = HashMap::<NodeID, NodeID>::new();
+        visited_parents.insert(source, source);
+        while let Some(curr) = q.pop_front() {
+            if curr == target {
+                match reconstruct_path(visited_parents, source, target) {
+                    
+                }
+            }
+            // handle the error properly later
+            self.find_neighbours(curr, direction)?.for_each(|neighbour| {
+                if !visited_parents.contains_key(&neighbour) {
+                    visited_parents.insert(neighbour, curr);
+                    q.push_front(neighbour);
+                }
+            });
+        }
+
+        return Ok(None)
+    }
+}
+
+fn reconstruct_path(parents_map: HashMap<NodeID, NodeID>, source: NodeID, target: NodeID) -> Vec<NodeID> {
+    let mut path: Vec<NodeID> = Vec::new();
+    let curr = target;
+    while !curr == /* null */ {
+       path.push(curr);
+       curr = parents_map[curr];
+    }
+    path.reverse()
 }
 
 fn main() {
