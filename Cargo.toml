@@ -2,6 +2,3 @@
 name = "graph-chat"
 version = "0.1.0"
 edition = "2024"
-
-[dependencies]
-error_macro = { path = "./error_macro" }
