@@ -171,15 +171,18 @@ impl Graph {
         target: NodeID, 
         direction: Direction
     ) -> Result<Option<Vec<NodeID>>, GraphError> {
+
+        if !self.node_store.contains_key(&source) || !self.node_store.contains_key(&target) {
+            return Err(GraphError::OutOfNodeStore);
+        }
+
         let mut q = VecDeque::<NodeID>::new();
         q.push_back(source);
         let mut visited_parents = HashMap::<NodeID, NodeID>::new();
-        visited_parents.insert(source, source);
+
         while let Some(curr) = q.pop_front() {
             if curr == target {
-                match reconstruct_path(visited_parents, source, target) {
-                    
-                }
+                return Ok(Some(reconstruct_path(visited_parents, source, target)));             
             }
             // handle the error properly later
             self.find_neighbours(curr, direction)?.for_each(|neighbour| {
@@ -195,13 +198,14 @@ impl Graph {
 }
 
 fn reconstruct_path(parents_map: HashMap<NodeID, NodeID>, source: NodeID, target: NodeID) -> Vec<NodeID> {
-    let mut path: Vec<NodeID> = Vec::new();
-    let curr = target;
-    while !curr == /* null */ {
-       path.push(curr);
-       curr = parents_map[curr];
+    let mut path: Vec<NodeID> = vec![target];
+    // path is initialized and only grows. unwrap cannot panic.
+    while source != *path.last().unwrap() {
+       path.push(parents_map[path.last().unwrap()]);
     }
-    path.reverse()
+    path.reverse();
+
+    path
 }
 
 fn main() {
